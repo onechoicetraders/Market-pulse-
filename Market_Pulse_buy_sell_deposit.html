@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Market Pulse</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f7f9;--card:#fff;--text:#14171c;--mute:#6b7280;--line:#e5e7eb;--up:#0a8f4e;--down:#d33a3a;--acc:#2463eb;--upbg:rgba(10,143,78,.16);--downbg:rgba(211,58,58,.16)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--card:#171b22;--text:#e8ebf0;--mute:#8b93a1;--line:#252b35;--up:#31c47a;--down:#f06565;--acc:#6b9bff;--upbg:rgba(49,196,122,.18);--downbg:rgba(240,101,101,.18);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1116;--card:#171b22;--text:#e8ebf0;--mute:#8b93a1;--line:#252b35;--up:#31c47a;--down:#f06565;--acc:#6b9bff;--upbg:rgba(49,196,122,.18);--downbg:rgba(240,101,101,.18);color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:1100px;margin-inline:auto;padding:12px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+h1{font-size:18px;margin:0}
+.pill{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--up);animation:p 1.4s infinite}
+.paused .dot{background:var(--mute);animation:none}
+@keyframes p{50%{opacity:.3}}
+button{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:800px){.grid{grid-template-columns:340px 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr 70px auto;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border:0}
+.row.sel{background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.sym{font-weight:600}.nm{font-size:12px;color:var(--mute)}
+.px{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;padding:2px 6px;border-radius:6px}
+.chg{font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}
+.fu{background:var(--upbg)}.fd{background:var(--downbg)}
+.px{transition:background .6s}
+.top{padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px}
+.big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.tools{display:flex;gap:6px}
+.chartwrap{padding:0 8px 8px}
+canvas{width:100%;height:300px;display:block}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.stats div{padding:10px 14px}
+.stats span{display:block;font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.stats b{font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--mute);margin:12px 2px 0}
+svg.sp{width:70px;height:26px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Market Pulse</h1>
+  <div class="pill" id="status"><span class="dot"></span><span id="stxt">Simulated live feed · 1 tick/sec</span>
+    <button id="pause">Pause</button></div>
+</header>
+<div class="grid">
+  <div class="card" id="watch"></div>
+  <div class="card">
+    <div class="top">
+      <div><div style="font-weight:600" id="cs"></div><div class="big" id="cp"></div><div id="cc" class="chg"></div></div>
+      <div class="tools"><button id="bl" class="on">Line</button><button id="bc">Candles</button></div>
+    </div>
+    <div class="chartwrap"><canvas id="ch"></canvas></div>
+    <div class="stats">
+      <div><span>Open</span><b id="so"></b></div><div><span>High</span><b id="sh"></b></div>
+      <div><span>Low</span><b id="sl"></b></div><div><span>Volume</span><b id="sv"></b></div>
+    </div>
+  </div>
+</div>
+
+<section class="card" id="account" style="margin-top:12px;padding:14px">
+  <h2 style="font-size:17px;margin:0 0 10px">Trading Account (Demo)</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:12px">
+    <div><div class="nm">Available balance</div><div class="big" id="balance" style="font-size:22px">KSh 0.00</div></div>
+    <div><div class="nm">Portfolio value</div><div class="big" id="portfolio" style="font-size:22px">KSh 0.00</div></div>
+    <div><div class="nm">Open positions</div><div class="big" id="positions" style="font-size:22px">0</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+      <h3 style="margin:0 0 8px;font-size:15px">Deposit funds</h3>
+      <label for="depositAmount">Amount (KSh)</label>
+      <input id="depositAmount" type="number" min="1" step="1" placeholder="e.g. 1000" style="width:100%;padding:9px;margin:6px 0 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)">
+      <button id="depositBtn" class="on" style="width:100%">Add demo funds</button>
+    </div>
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+      <h3 style="margin:0 0 8px;font-size:15px">Buy / Sell</h3>
+      <div class="nm" id="tradeAsset">Selected asset: AAPL</div>
+      <label for="tradeQty">Quantity</label>
+      <input id="tradeQty" type="number" min="0.000001" step="any" value="1" style="width:100%;padding:9px;margin:6px 0 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button id="buyBtn" class="on">Buy</button><button id="sellBtn">Sell</button></div>
+      <div class="nm" id="tradeHint" style="margin-top:8px">Orders use the displayed simulated price.</div>
+    </div>
+  </div>
+  <h3 style="font-size:15px;margin:16px 0 6px">Holdings</h3>
+  <div id="holdings" class="nm">No holdings yet.</div>
+  <h3 style="font-size:15px;margin:16px 0 6px">Recent activity</h3>
+  <div id="activity" class="nm">No transactions yet.</div>
+  <p class="note">Demo only: deposits add simulated KSh balance; no money is collected or transferred. Buy/sell orders use simulated market prices. Real deposits and trading require a secure backend and payment/broker integration.</p>
+</section>
+
+<p class="note">Prices here are simulated random-walk data for demonstration, not real quotes. To go live, replace the <code>Feed</code> object’s <code>start()</code> with a WebSocket or REST connection to a market-data provider and call <code>onTick(symbol, price, size)</code>.</p>
+
+<script>
+const SYMS=[["AAPL","Apple",228,.0009],["MSFT","Microsoft",430,.0008],["NVDA","NVIDIA",140,.002],["TSLA","Tesla",250,.0025],["AMZN","Amazon",190,.001],["GOOGL","Alphabet",175,.0009],["BTC-USD","Bitcoin",68000,.003],["ETH-USD","Ethereum",2600,.0035]];
+const D={};let sel="AAPL",mode="line",paused=false;
+const fmt=(n,s)=>n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+function rnd(){let u=0;for(let i=0;i<4;i++)u+=Math.random();return (u-2)/1.15}
+// Seed history
+SYMS.forEach(([s,n,p,v])=>{let h=[],x=p*(1-.01*Math.random());for(let i=0;i<300;i++){x*=1+rnd()*v*.6;h.push(x)}
+  const k=p/h[h.length-1];h=h.map(y=>y*k);
+  D[s]={s,n,v,h,open:h[0],hi:Math.max(...h),lo:Math.min(...h),vol:Math.floor(Math.random()*5e6+1e6),dir:0}});
+// Feed adapter: swap start() for a real provider
+const Feed={onTick:null,start(){this.t=setInterval(()=>{if(paused)return;
+  SYMS.forEach(([s])=>{const d=D[s],last=d.h[d.h.length-1];this.onTick(s,last*(1+rnd()*d.v*.5),Math.floor(Math.random()*900+50))})},1000)}};
+Feed.onTick=(s,p,sz)=>{const d=D[s],last=d.h[d.h.length-1];d.dir=p>last?1:p<last?-1:0;d.h.push(p);if(d.h.length>900)d.h.shift();
+  d.hi=Math.max(d.hi,p);d.lo=Math.min(d.lo,p);d.vol+=sz;};
+function spark(h,up){const a=h.slice(-40),mn=Math.min(...a),mx=Math.max(...a)||1,r=mx-mn||1;
+  const pts=a.map((y,i)=>(i/(a.length-1)*70).toFixed(1)+","+(24-(y-mn)/r*22).toFixed(1)).join(" ");
+  return `<svg class="sp" viewBox="0 0 70 26"><polyline fill="none" stroke="var(--${up?"up":"down"})" stroke-width="1.5" points="${pts}"/></svg>`}
+function renderWatch(){
+  document.getElementById("watch").innerHTML=SYMS.map(([s])=>{const d=D[s],p=d.h[d.h.length-1],c=p-d.open,pc=c/d.open*100,up=c>=0;
+    return `<div class="row ${s===sel?"sel":""}" data-s="${s}"><div><div class="sym">${s}</div><div class="nm">${d.n}</div></div>
+    ${spark(d.h,up)}<div><div class="px ${d.dir>0?"fu":d.dir<0?"fd":""}">${fmt(p)}</div><div class="chg ${up?"up":"down"}">${up?"+":""}${pc.toFixed(2)}%</div></div></div>`}).join("");
+  document.querySelectorAll(".row").forEach(r=>r.onclick=()=>{sel=r.dataset.s;renderAll();if(typeof renderAccount==="function")renderAccount()});
+}
+function renderHead(){const d=D[sel],p=d.h[d.h.length-1],c=p-d.open,pc=c/d.open*100,up=c>=0;
+  cs.textContent=sel+" · "+d.n;cp.textContent=fmt(p);cc.className="chg "+(up?"up":"down");
+  cc.textContent=(up?"+":"")+fmt(c)+" ("+(up?"+":"")+pc.toFixed(2)+"%) today";
+  so.textContent=fmt(d.open);sh.textContent=fmt(d.hi);sl.textContent=fmt(d.lo);sv.textContent=(d.vol/1e6).toFixed(2)+"M"}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function draw(){const cv=document.getElementById("ch"),dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  const d=D[sel],up=d.h[d.h.length-1]>=d.open,col=css(up?"--up":"--down"),line=css("--line"),mute=css("--mute");
+  let data,cs_=[];
+  if(mode==="line")data=d.h.slice(-180);
+  else{const hh=d.h.slice(-300);for(let i=0;i<hh.length;i+=5){const c=hh.slice(i,i+5);cs_.push({o:c[0],c:c[c.length-1],h:Math.max(...c),l:Math.min(...c)})}
+    data=cs_.flatMap(c=>[c.h,c.l])}
+  let mn=Math.min(...data),mx=Math.max(...data);const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;
+  const L=8,R=60,T=8,B=8,w=W-L-R,h=H-T-B,Y=v=>T+(1-(v-mn)/(mx-mn))*h;
+  g.font="11px system-ui";g.textBaseline="middle";g.fillStyle=mute;g.strokeStyle=line;g.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(L+w,y);g.stroke();g.fillText(fmt(v),L+w+6,y)}
+  if(mode==="line"){const n=data.length;g.beginPath();data.forEach((v,i)=>{const x=L+i/(n-1)*w;i?g.lineTo(x,Y(v)):g.moveTo(x,Y(v))});
+    g.strokeStyle=col;g.lineWidth=2;g.stroke();g.lineTo(L+w,T+h);g.lineTo(L,T+h);g.closePath();
+    const gr=g.createLinearGradient(0,T,0,T+h);gr.addColorStop(0,col+"44");gr.addColorStop(1,col+"00");g.fillStyle=gr;g.fill()}
+  else{const n=cs_.length,cw=w/n;cs_.forEach((c,i)=>{const x=L+(i+.5)*cw,u=c.c>=c.o,k=css(u?"--up":"--down");g.strokeStyle=k;g.fillStyle=k;g.lineWidth=1;
+    g.beginPath();g.moveTo(x,Y(c.h));g.lineTo(x,Y(c.l));g.stroke();const y1=Y(Math.max(c.o,c.c)),y2=Y(Math.min(c.o,c.c));g.fillRect(x-cw*.35,y1,cw*.7,Math.max(1,y2-y1))})}
+  const p=d.h[d.h.length-1],y=Y(p);g.setLineDash([3,3]);g.strokeStyle=col;g.beginPath();g.moveTo(L,y);g.lineTo(L+w,y);g.stroke();g.setLineDash([]);
+  g.fillStyle=col;g.fillRect(L+w+2,y-9,R-4,18);g.fillStyle="#fff";g.fillText(fmt(p),L+w+6,y)}
+function renderAll(){renderWatch();renderHead();draw()}
+document.getElementById("pause").onclick=e=>{paused=!paused;e.target.textContent=paused?"Resume":"Pause";document.getElementById("status").classList.toggle("paused",paused);
+  stxt.textContent=paused?"Paused":"Simulated live feed · 1 tick/sec"};
+bl.onclick=()=>{mode="line";bl.classList.add("on");bc.classList.remove("on");draw()};
+bc.onclick=()=>{mode="candle";bc.classList.add("on");bl.classList.remove("on");draw()};
+addEventListener("resize",draw);
+
+// Demo account ledger: stored locally in this browser only; not real money.
+const account={cash:0,holdings:{},activity:[]};
+const kes=n=>"KSh "+Number(n).toLocaleString("en-KE",{minimumFractionDigits:2,maximumFractionDigits:2});
+function logActivity(message){account.activity.unshift({message,time:new Date().toLocaleString()});account.activity=account.activity.slice(0,12)}
+function renderAccount(){
+  const value=Object.entries(account.holdings).reduce((sum,[s,q])=>sum+q*D[s].h[D[s].h.length-1],0);
+  balance.textContent=kes(account.cash);portfolio.textContent=kes(value);positions.textContent=Object.keys(account.holdings).filter(s=>account.holdings[s]>0.0000001).length;
+  tradeAsset.textContent="Selected asset: "+sel+" · "+kes(D[sel].h[D[sel].h.length-1]);
+  const entries=Object.entries(account.holdings).filter(([s,q])=>q>0.0000001);
+  holdings.innerHTML=entries.length?entries.map(([s,q])=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b>${s}</b> — ${q.toLocaleString("en-US",{maximumFractionDigits:6})} units · ${kes(q*D[s].h[D[s].h.length-1])}</div>`).join(""):"No holdings yet.";
+  activity.innerHTML=account.activity.length?account.activity.map(a=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)">${a.message}<div>${a.time}</div></div>`).join(""):"No transactions yet.";
+}
+depositBtn.onclick=()=>{const amount=Number(depositAmount.value);if(!Number.isFinite(amount)||amount<=0){alert("Enter a deposit amount greater than zero.");return}account.cash+=amount;logActivity("Demo deposit: "+kes(amount));depositAmount.value="";renderAccount()};
+function trade(side){
+ const qty=Number(tradeQty.value),price=D[sel].h[D[sel].h.length-1],total=qty*price;
+ if(!Number.isFinite(qty)||qty<=0){alert("Enter a quantity greater than zero.");return}
+ if(!Number.isFinite(total)){alert("Invalid order amount.");return}
+ if(side==="buy"){
+   if(total>account.cash){alert("Insufficient demo balance. Add demo funds first.");return}
+   account.cash-=total;account.holdings[sel]=(account.holdings[sel]||0)+qty;
+ }else{
+   if((account.holdings[sel]||0)+1e-10<qty){alert("You do not own enough units of this asset to sell.");return}
+   account.holdings[sel]-=qty;if(account.holdings[sel]<1e-10)delete account.holdings[sel];account.cash+=total;
+ }
+ logActivity(`${side==="buy"?"Bought":"Sold"} ${qty} ${sel} at ${kes(price)} each · ${kes(total)}`);renderAccount();
+}
+buyBtn.onclick=()=>trade("buy");sellBtn.onclick=()=>trade("sell");
+
+Feed.start();renderAll();renderAccount();setInterval(()=>{if(!paused){renderAll();renderAccount()}},1000);
+</script>
+</body>
+</html>
